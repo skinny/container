@@ -19,6 +19,7 @@ import ContainerClient
 import Containerization
 import ContainerizationError
 import ContainerizationOCI
+import ContainerPlugin
 import Foundation
 
 extension Application {
@@ -89,8 +90,37 @@ extension Application {
                 )
             )
             try await client.ping()
-            try keychain.save(domain: server, username: username, password: password)
+
+            // Build list of trusted application paths for keychain ACL
+            let trustedPaths = Self.trustedApplicationPaths()
+            try keychain.save(
+                domain: server,
+                username: username,
+                password: password,
+                trustedApplicationPaths: trustedPaths
+            )
             print("Login succeeded")
+        }
+
+        /// Returns paths to trusted applications that should have access to registry credentials.
+        private static func trustedApplicationPaths() -> [String] {
+            var paths: [String] = []
+
+            // Add container-core-images plugin if it exists
+            let coreImagesPluginPath = InstallRoot.url
+                .appendingPathComponent("libexec")
+                .appendingPathComponent("container")
+                .appendingPathComponent("plugins")
+                .appendingPathComponent("container-core-images")
+                .appendingPathComponent("bin")
+                .appendingPathComponent("container-core-images")
+                .path
+
+            if FileManager.default.fileExists(atPath: coreImagesPluginPath) {
+                paths.append(coreImagesPluginPath)
+            }
+
+            return paths
         }
     }
 }
